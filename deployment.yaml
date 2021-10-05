@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app-deployment
+  lables:
+    app: web-app
+spec:
+  selector:
+    matchLabels:
+      app: web-app 
+  replicas: 4             # Создадим 4 пода при инициализации, так как на первые запросы будет использоваться значительно больше ресурсов
+  minReadySeconds: 10     # Дадим deployment 10 секунд на развертывания до того, как он будет готов к использованию
+  template:
+    metadata:
+      labels:
+        app: web-app
+    spec:
+      containers:
+        - name: web-app
+          image: container/repository
+
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-app-autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web-app-deployment
+  minReplicas: 1    # Для экономии ресурсов при низком количестве запросов установим минимальное количество подов равное 1
+  maxReplicas: 4    # Известно что 4 пода справляются с пиковой нагрузкой. Установим максимальное количество подов равное 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 10    # Известно что потребление CPU ровное в райное 10% CPU
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: AverageValue
+        averageValue: 128Mi  # Известно что потребление памяти ровное в райное 128M
